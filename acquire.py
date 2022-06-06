@@ -45,5 +45,3 @@ def get_zillow_data():
 
         # Return the dataframe to the calling code
         return df   
-
-df = get_zillow_data()

@@ -1,7 +1,6 @@
 # clean_zillow_data(df) function is created to cut and clean data that could affect future work. 
 # wrangle_zillow() is a function created for the purpose of combining both get_zillow_data and clean_zillow_data.
 
-
 from cgi import test
 from lib2to3.pgen2.pgen import DFAState
 from lib2to3.refactor import get_all_fix_names
@@ -18,16 +17,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer
 import warnings
 warnings.filterwarnings('ignore')
-import acquire
-
-
-# outlier handling to remove quant_cols with >3.5 z-score (std dev)
-def remove_outliers(threshold, quant_cols, df):
-    z = np.abs((stats.zscore(df[quant_cols])))
-    df_without_outliers=  df[(z < threshold).all(axis=1)]
-    print(df.shape)
-    print(df_without_outliers.shape)
-    return df_without_outliers
 
 def clean_zillow_data(df):
     """
@@ -37,28 +26,19 @@ def clean_zillow_data(df):
     Returns cleaned data.
     """
     # remove empty entries stored as whitespace, convert to nulls
-    df = df.replace(r'^\s*$', np.nan, regex=True)
+    #df = df.replace(r'^\s*$', np.nan, regex=True)
     # drop null rows
-    df = df.dropna()
-    # drop any duplicate rows
+    #df = df.dropna()
+    #drop any duplicate rows
     df = df.drop_duplicates(keep='first')
-    # convert column types from float to int
-    df = df.astype({'fips': int, 'parcelid': object, 'yearbuilt': int})
     # remove homes with 0 BR/BD or SQ FT from the final df
     df = df[(df.bedroomcnt != 0) & (df.bathroomcnt != 0) &
     (df.calculatedfinishedsquarefeet >= 69)]
-    # remove all rows where any column has z score gtr than 3
-    non_quants = ['yearbuilt', 'fips', 'parcelid']
-    quants = df.drop(columns=non_quants).columns
-    # outlier handling
-    # remove numeric values with > 3.5 std dev
-    df = remove_outliers(3.5, quants, df)
     #df['column name'] = df['column name']. replace(['old value'],'new value')
     df['fips'] = df['fips'].replace(6037.0, 'Los Angeles,CA')
     df['fips'] = df['fips'].replace(6059.0, 'Orange,CA')
     df['fips'] = df['fips'].replace(6111.0, 'Ventura,CA')
     return df 
-df = clean_zillow_data(df)
 
 
 # def split_zillow_data(df):
