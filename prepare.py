@@ -15,8 +15,19 @@ import scipy
 import os
 from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import MinMaxScaler, StandardScaler, RobustScaler, QuantileTransformer
 import warnings
 warnings.filterwarnings('ignore')
+#removing outliers to get a better look at the data
+def remove_outliers(threshold, quant_cols, df):
+    z = np.abs((stats.zscore(df[quant_cols])))
+    df_without_outliers=  df[(z < threshold).all(axis=1)]
+    print(df.shape)
+    print(df_without_outliers.shape)
+    non_quants = ['yearbuilt', 'fips','propertylandusedesc']
+    quants = df.drop(columns=non_quants).columns
+    df = remove_outliers(3.5, quants, df) 
+    return df_without_outliers
 
 def clean_zillow_data(df):
     """
@@ -24,9 +35,9 @@ def clean_zillow_data(df):
     Arguments: drops unnecessary columns, 0 value columns, duplicates,
     and converts select columns from float to int.
     Returns cleaned data.
-    """
+    """ 
     # remove empty entries stored as whitespace, convert to nulls
-    #df = df.replace(r'^\s*$', np.nan, regex=True)
+    df = df.replace(r'^\s*$', np.nan, regex=True)
     # drop null rows
     #df = df.dropna()
     #drop any duplicate rows
@@ -38,44 +49,131 @@ def clean_zillow_data(df):
     df['fips'] = df['fips'].replace(6037.0, 'Los Angeles,CA')
     df['fips'] = df['fips'].replace(6059.0, 'Orange,CA')
     df['fips'] = df['fips'].replace(6111.0, 'Ventura,CA')
+    # dropping collumns that will only get us more comfused in the exploration process.
+    df = df.drop(columns=["parcelid",
+                 "id",
+                 "airconditioningtypeid",
+                 "architecturalstyletypeid",
+                 "basementsqft",
+                 "buildingclasstypeid",
+                 "buildingqualitytypeid",
+                 "calculatedbathnbr",
+                 "decktypeid",
+                 "finishedfloor1squarefeet",
+                 'finishedsquarefeet12',
+                 'finishedsquarefeet13',
+                 'finishedsquarefeet15',
+                 'finishedsquarefeet50',
+                 'finishedsquarefeet6',
+                 'fireplacecnt',
+                 'fullbathcnt',
+                 'garagetotalsqft',
+                 'hashottuborspa',
+                 'lotsizesquarefeet',
+                 'poolcnt',
+                 'poolsizesum',
+                 'pooltypeid10',
+                 'pooltypeid2',
+                 'pooltypeid7',
+                 'landtaxvaluedollarcnt',
+                 'structuretaxvaluedollarcnt',
+                 'taxamount',
+                 'propertycountylandusecode',
+                 'propertylandusetypeid',
+                 'propertyzoningdesc',
+                 'rawcensustractandblock',
+                 'roomcnt',
+                 'storytypeid',
+                 'threequarterbathnbr',
+                 'typeconstructiontypeid',
+                 'unitcnt',
+                 'yardbuildingsqft17',
+                 'yardbuildingsqft26',
+                 'numberofstories',
+                 'fireplaceflag',
+                 'structuretaxvaluedollarcnt',
+                 'assessmentyear',
+                 'taxdelinquencyflag',
+                 'taxdelinquencyyear',
+                 'censustractandblock',
+                 'id',
+                 'transactiondate','regionidneighborhood','id.1'])
+    # filling iin NaN with 0, to fill in values that have no info like garages, heatingsystems and A/C 
+    df = df.fillna(0)
     return df 
 
-
-# def split_zillow_data(df):
-#     '''
-#     take in a DataFrame and return train, validate, and test DataFrames; stratify on fips.
-#     return train, validate, test DataFrames.
-#     '''
-#         #splits df into train_validate and test using train_test_split() stratifying on fips to get an even mix of each fips
-#     train_validate, test = train_test_split(df, test_size=.2, random_state=123)
+def split_zillow_data(df):
+    '''
+    take in a DataFrame and return train, validate, and test DataFrames; stratify on fips.
+    return train, validate, test DataFrames.
+    '''
+        #splits df into train_validate and test using train_test_split() stratifying on fips to get an even mix of each fips
+    train_validate, test = train_test_split(df, test_size=.2, random_state=123)
     
-#         # splits train_validate into train and validate using train_test_split() stratifying on fips to get an even mix of each fips
-#     train, validate = train_test_split(train_validate, 
-#                                        test_size=.3, 
-#                                        random_state=123)
-#     return train, validate, test
+        # splits train_validate into train and validate using train_test_split() stratifying on fips to get an even mix of each fips
+    train, validate = train_test_split(train_validate, 
+                                       test_size=.3, 
+                                       random_state=123)
+    return train, validate, test
 
-# train, validate, test = split_zillow_data(df)
+    # copy and paste this on notebook to summon split data train .train, validate, test = prepare.split_zillow_data(df)
 
-# columns = ['yearbuilt','calculatedfinishedsquarefeet','taxamount','bathroomcnt','bedroomcnt']
-
-# def plot_variable_pairs():
-#     for col in columns:
-#         sns.lmplot(x = col, y='taxvaluedollarcnt', col = 'fips',hue='fips',
-#                line_kws= {'color': 'red'},data=train.sample(1000))
+# scaling my data will allow me to visualize and explore my data easier, makinng the visuals alot better to comprehend
+def scale_data(train, 
+               validate, 
+               test, 
+               columns_to_scale=['bathroomcnt', 'bedroomcnt',
+                'garagecarcnt', 'heatingorsystemtypeid', 'latitude', 'longitude',
+                'regionidcity', 'regionidcounty', 'regionidzip', 'yearbuilt',
+                'taxvaluedollarcnt', 'logerror','calculatedfinishedsquarefeet'],
+               return_scaler=False):
+    '''
+    Scales the 3 data splits. 
+    Takes in train, validate, and test data splits and returns their scaled counterparts.
+    If return_scalar is True, the scaler object will be returned as well
+    '''
+    train_scaled = train.copy()
+    validate_scaled = validate.copy()
+    test_scaled = test.copy()
     
-# plot_variable_pairs()
+    scaler = MinMaxScaler()
+    scaler.fit(train[columns_to_scale])
+    
+    train_scaled[columns_to_scale] = pd.DataFrame(scaler.transform(train[columns_to_scale]),
+                                                  columns=train[columns_to_scale].columns.values).set_index([train.index.values])
+                                                  
+    validate_scaled[columns_to_scale] = pd.DataFrame(scaler.transform(validate[columns_to_scale]),
+                                                  columns=validate[columns_to_scale].columns.values).set_index([validate.index.values])
+    
+    test_scaled[columns_to_scale] = pd.DataFrame(scaler.transform(test[columns_to_scale]),
+                                                 columns=test[columns_to_scale].columns.values).set_index([test.index.values])
+    
+    if return_scaler:
+        return scaler, train_scaled, validate_scaled, test_scaled
+    else:
+        return train_scaled, validate_scaled, test_scaled
 
-# columns = ['yearbuilt','calculatedfinishedsquarefeet','taxamount','bathroomcnt','bedroomcnt']
-# def plot_categorical_and_continuous_vars():
-#     for col in columns:
-#         sns.set(rc={"figure.figsize":(15, 6)})
-#         fig, axes = plt.subplots(1,3)
+        #copy and paste this to your jupyter notebook so you can get test,train,validate scaled (scaler, train_scaled, validate_scaled, test_scaled = prepare.scale_data(train, validate, test, return_scaler=True))
+
+#______________________________________________________________________________________________________________________________________________________________________________________________
+
+
+def plot_variable_pairs(train):
+    columns = ['calculatedfinishedsquarefeet','bathroomcnt','bedroomcnt','garagecarcnt','yearbuilt']
+    for col in columns:
+        sns.lmplot(data = train.sample(10000), x = col, y='taxvaluedollarcnt')#,hue='fips',col='fips', line_kws= {'color': 'red'},data=train.sample(1000))
+    
+
+
+def plot_categorical_and_continuous_vars(train):
+    columns = ['calculatedfinishedsquarefeet','bathroomcnt','bedroomcnt']
+    for col in columns:
+        sns.set(rc={"figure.figsize":(15, 6)})
+        fig, axes = plt.subplots(1,3)
         
-#         sns.boxplot(x='fips', y=col, data=train.sample(1000),ax = axes[0])
-#         sns.violinplot(x='fips', y= col, data=train.sample(1000),ax = axes[1]) 
-#         sns.swarmplot(x='fips', y= col, data=train.sample(1000),ax = axes[2])
+        sns.boxplot(x='fips', y=col, data=train.sample(1000),ax = axes[0])
+        sns.violinplot(x='fips', y= col, data=train.sample(1000),ax = axes[1]) 
+        sns.swarmplot(x='fips', y= col, data=train.sample(1000),ax = axes[2])
         
-#         plt.show
+        plt.show
         
-# plot_categorical_and_continuous_vars()
