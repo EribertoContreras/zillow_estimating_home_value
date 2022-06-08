@@ -42,13 +42,17 @@ def clean_zillow_data(df):
     #df = df.dropna()
     #drop any duplicate rows
     df = df.drop_duplicates(keep='first')
-    # remove homes with 0 BR/BD or SQ FT from the final df
-    df = df[(df.bedroomcnt != 0) & (df.bathroomcnt != 0) &
-    (df.calculatedfinishedsquarefeet >= 69)]
     #df['column name'] = df['column name']. replace(['old value'],'new value')
-    df['fips'] = df['fips'].replace(6037.0, 'Los Angeles,CA')
-    df['fips'] = df['fips'].replace(6059.0, 'Orange,CA')
-    df['fips'] = df['fips'].replace(6111.0, 'Ventura,CA')
+    # df['fips'] = df['fips'].replace(6037.0, 'Los Angeles,CA')
+    # df['fips'] = df['fips'].replace(6059.0, 'Orange,CA')
+    # df['fips'] = df['fips'].replace(6111.0, 'Ventura,CA')
+    # ventura = df[df.fips == 'Ventura,CA']
+    # la = df[df.fips == 'Los Angeles,CA']
+    # oc = df[df.fips == 'Orange,CA']
+    # remove homes with 0 BR/BD or SQ FT from the final df, dropping rows that have zip code = 0
+    df = df[(df.bedroomcnt != 0) & (df.bathroomcnt != 0) & (df.calculatedfinishedsquarefeet >= 500)&(df.bedroomcnt < 6)&(df.bedroomcnt > 1)&(df.regionidzip != 0.0)&(df.bathroomcnt < 4)
+           & (df.yearbuilt > 1899)&(df.calculatedfinishedsquarefeet < 3050)&(df.taxvaluedollarcnt < 1000000)&(df.bathroomcnt > 1)&(df.yearbuilt > 1919)&(df.yearbuilt <= 2015)]
+    
     # dropping collumns that will only get us more comfused in the exploration process.
     df = df.drop(columns=["parcelid",
                  "id",
@@ -59,6 +63,7 @@ def clean_zillow_data(df):
                  "buildingqualitytypeid",
                  "calculatedbathnbr",
                  "decktypeid",
+                 'garagecarcnt',
                  "finishedfloor1squarefeet",
                  'finishedsquarefeet12',
                  'finishedsquarefeet13',
@@ -67,10 +72,12 @@ def clean_zillow_data(df):
                  'finishedsquarefeet6',
                  'fireplacecnt',
                  'fullbathcnt',
+                 'heatingorsystemtypeid',
                  'garagetotalsqft',
                  'hashottuborspa',
                  'lotsizesquarefeet',
                  'poolcnt',
+                 'regionidcity',
                  'poolsizesum',
                  'pooltypeid10',
                  'pooltypeid2',
@@ -83,6 +90,7 @@ def clean_zillow_data(df):
                  'propertyzoningdesc',
                  'rawcensustractandblock',
                  'roomcnt',
+                 'logerror',
                  'storytypeid',
                  'threequarterbathnbr',
                  'typeconstructiontypeid',
@@ -96,6 +104,7 @@ def clean_zillow_data(df):
                  'taxdelinquencyflag',
                  'taxdelinquencyyear',
                  'censustractandblock',
+                 'propertylandusedesc',
                  'id',
                  'transactiondate','regionidneighborhood','id.1'])
     # filling iin NaN with 0, to fill in values that have no info like garages, heatingsystems and A/C 
@@ -123,9 +132,8 @@ def scale_data(train,
                validate, 
                test, 
                columns_to_scale=['bathroomcnt', 'bedroomcnt',
-                'garagecarcnt', 'heatingorsystemtypeid', 'latitude', 'longitude',
-                'regionidcity', 'regionidcounty', 'regionidzip', 'yearbuilt',
-                'taxvaluedollarcnt', 'logerror','calculatedfinishedsquarefeet'],
+                 'latitude', 'longitude', 'regionidcounty', 'regionidzip', 'yearbuilt',
+                 'calculatedfinishedsquarefeet'],
                return_scaler=False):
     '''
     Scales the 3 data splits. 
@@ -159,7 +167,7 @@ def scale_data(train,
 
 
 def plot_variable_pairs(train):
-    columns = ['calculatedfinishedsquarefeet','bathroomcnt','bedroomcnt','garagecarcnt','yearbuilt']
+    columns = ['calculatedfinishedsquarefeet','bathroomcnt','bedroomcnt','yearbuilt']
     for col in columns:
         sns.lmplot(data = train.sample(10000), x = col, y='taxvaluedollarcnt')#,hue='fips',col='fips', line_kws= {'color': 'red'},data=train.sample(1000))
     
