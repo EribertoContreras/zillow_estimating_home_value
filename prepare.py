@@ -51,7 +51,7 @@ def clean_zillow_data(df):
     # oc = df[df.fips == 'Orange,CA']
     # remove homes with 0 BR/BD or SQ FT from the final df, dropping rows that have zip code = 0
     df = df[(df.bedroomcnt != 0) & (df.bathroomcnt != 0) & (df.calculatedfinishedsquarefeet >= 500)&(df.bedroomcnt < 6)&(df.bedroomcnt > 1)&(df.regionidzip != 0.0)&(df.bathroomcnt < 4)
-           & (df.yearbuilt > 1899)&(df.calculatedfinishedsquarefeet < 3050)&(df.taxvaluedollarcnt < 1000000)&(df.bathroomcnt > 1)&(df.yearbuilt > 1919)&(df.yearbuilt <= 2015)]
+           & (df.yearbuilt > 1899)&(df.calculatedfinishedsquarefeet < 3050)&(df.taxvaluedollarcnt < 1700000)&(df.bathroomcnt >= 1)&(df.yearbuilt > 1919)&(df.yearbuilt <= 2015)]
     
     # dropping collumns that will only get us more comfused in the exploration process.
     df = df.drop(columns=["parcelid",
@@ -132,7 +132,6 @@ def scale_data(train,
                validate, 
                test, 
                columns_to_scale=['bathroomcnt', 'bedroomcnt',
-                 'latitude', 'longitude', 'regionidcounty', 'regionidzip', 'yearbuilt',
                  'calculatedfinishedsquarefeet'],
                return_scaler=False):
     '''
@@ -162,6 +161,7 @@ def scale_data(train,
         return train_scaled, validate_scaled, test_scaled
 
         #copy and paste this to your jupyter notebook so you can get test,train,validate scaled (scaler, train_scaled, validate_scaled, test_scaled = prepare.scale_data(train, validate, test, return_scaler=True))
+    
 
 #______________________________________________________________________________________________________________________________________________________________________________________________
 
