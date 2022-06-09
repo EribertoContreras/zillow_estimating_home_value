@@ -13,10 +13,12 @@ import env
 from pydataset import data
 import scipy
 import os
+import math
 from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import MinMaxScaler, StandardScaler, RobustScaler, QuantileTransformer
 import warnings
+import acquire
 warnings.filterwarnings('ignore')
 #removing outliers to get a better look at the data
 def remove_outliers(threshold, quant_cols, df):
@@ -185,3 +187,150 @@ def plot_categorical_and_continuous_vars(train):
         
         plt.show
         
+def county_map():
+    df = acquire.get_zillow_data()
+    cd = df.copy()
+    cd['fips'] = cd['fips'].replace(6037.0, 'Los Angeles,CA')
+    cd['fips'] = cd['fips'].replace(6059.0, 'Orange,CA')
+    cd['fips'] = cd['fips'].replace(6111.0, 'Ventura,CA')
+    sns.scatterplot(cd.longitude, cd.latitude, s=1, hue= cd.fips)
+
+def Expensive_areas():
+    df = acquire.get_zillow_data()
+    cd = df.copy()
+    top = cd.taxvaluedollarcnt > 900000
+    sns.scatterplot(cd.longitude, cd.latitude, s=1, hue= top)
+    print('areas that cost over $900,000')
+
+def unclean_data():
+    df = acquire.get_zillow_data()
+    cd = df.copy()
+    cd = df.drop(columns=["parcelid",
+                 "id",
+                 "airconditioningtypeid",
+                 "architecturalstyletypeid",
+                 "basementsqft",
+                 "buildingclasstypeid",
+                 "buildingqualitytypeid",
+                 "calculatedbathnbr",
+                 "decktypeid",
+                 'garagecarcnt',
+                 "finishedfloor1squarefeet",
+                 'finishedsquarefeet12',
+                 'finishedsquarefeet13',
+                 'finishedsquarefeet15',
+                 'finishedsquarefeet50',
+                 'finishedsquarefeet6',
+                 'fireplacecnt',
+                 'fullbathcnt',
+                 'heatingorsystemtypeid',
+                 'garagetotalsqft',
+                 'hashottuborspa',
+                 'lotsizesquarefeet',
+                 'poolcnt',
+                 'regionidcity',
+                 'poolsizesum',
+                 'pooltypeid10',
+                 'pooltypeid2',
+                 'pooltypeid7',
+                 'landtaxvaluedollarcnt',
+                 'structuretaxvaluedollarcnt',
+                 'taxamount',
+                 'propertycountylandusecode',
+                 'propertylandusetypeid',
+                 'propertyzoningdesc',
+                 'rawcensustractandblock',
+                 'roomcnt',
+                 'logerror',
+                 'storytypeid',
+                 'threequarterbathnbr',
+                 'typeconstructiontypeid',
+                 'unitcnt',
+                 'yardbuildingsqft17',
+                 'yardbuildingsqft26',
+                 'numberofstories',
+                 'fireplaceflag',
+                 'structuretaxvaluedollarcnt',
+                 'assessmentyear',
+                 'taxdelinquencyflag',
+                 'taxdelinquencyyear',
+                 'censustractandblock',
+                 'propertylandusedesc',
+                 'id',
+                 'transactiondate',
+                 'regionidneighborhood',
+                 'id.1'])
+
+def plots_unclean():
+    df = acquire.get_zillow_data()
+    cd = df.copy()   
+    for column in ['bathroomcnt', 'bedroomcnt', 'calculatedfinishedsquarefeet', 'yearbuilt', 'taxvaluedollarcnt']:
+        plt.figure(figsize=(15,6))
+        sns.boxplot(x=column, data=cd)
+        plt.show()
+
+def box_plots_clean_data(df):
+    for column in ['bathroomcnt', 'bedroomcnt', 'calculatedfinishedsquarefeet', 'yearbuilt', 'taxvaluedollarcnt']:
+        plt.figure(figsize=(15,6))
+        sns.boxplot(x=column, data=df)
+        plt.show()
+
+def figure(df):
+    plt.figure(figsize=(10, 8))
+    for i, col in enumerate(['bathroomcnt', 'bedroomcnt', 'calculatedfinishedsquarefeet', 'taxvaluedollarcnt']):  
+        plot_number = i + 1 # i starts at 0, but plot nos should start at 1
+        series = df[col]  
+        plt.subplot(2,2, plot_number)
+        plt.title(col)
+        series.hist(bins=20)
+def residuals(actual, predicted):
+    return actual - predicted
+
+#sum of squared errors (SSE)
+def sse(actual, predicted):
+    return (residuals(actual, predicted) **2).sum()
+
+#explained sum of squares (ESS)
+def ess(actual, predicted):
+    return ((predicted - actual.mean()) ** 2).sum()
+
+#total sum of squares (TSS)
+def tss(actual):
+    return ((actual - actual.mean()) ** 2).sum()
+
+#mean squared error (MSE)
+def mse(actual, predicted):
+    n = actual.shape[0]
+    return sse(actual, predicted) / n
+
+#root mean squared error (RMSE)
+def rmse(actual, predicted):
+    return math.sqrt(mse(actual, predicted))
+
+# returns r2 scor
+def r2_score(actual, predicted):
+    return ess(actual, predicted) / tss(actual)
+#____________________________________________________________________________________________________________________________________________________________
+
+
+def regression_errors(actual, predicted):
+    return pd.Series({
+        'SSE': sse(actual, predicted),
+        'ESS': ess(actual, predicted),
+        'TSS': tss(actual),
+        'MSE': mse(actual, predicted),
+        'RMSE': rmse(actual, predicted),
+    })
+
+def baseline_mean_errors(actual):
+    predicted = actual.mean()
+    return {
+        'SSE': sse(actual, predicted),
+        'MSE': mse(actual, predicted),
+        'RMSE': rmse(actual, predicted),
+    }
+
+def better_than_baseline(actual, predicted):
+    rmse_baseline = rmse(actual, actual.mean())
+    rmse_model = rmse(actual, predicted)
+    return rmse_model < rmse_baseline
